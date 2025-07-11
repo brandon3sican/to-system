@@ -3,26 +3,41 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\UserManagementController;
 
 Route::middleware(['auth'])->group(function () {
     // Dashboard Routes
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Travel Orders Routes
-    Route::resource('travel-orders', TravelOrderController::class);
-    Route::get('travel-orders/print/{id}', [TravelOrderController::class, 'print'])->name('travel-orders.print');
+    // Position Management Routes
+    Route::get('/positions', [\App\Http\Controllers\PositionController::class, 'index'])->name('positions.index');
+    Route::get('/positions/create', [\App\Http\Controllers\PositionController::class, 'create'])->name('positions.create');
+    Route::post('/positions', [\App\Http\Controllers\PositionController::class, 'store'])->name('positions.store');
+    Route::get('/positions/{position}', [\App\Http\Controllers\PositionController::class, 'edit'])->name('positions.edit');
+    Route::put('/positions/{position}', [\App\Http\Controllers\PositionController::class, 'update'])->name('positions.update');
+    Route::delete('/positions/{position}', [\App\Http\Controllers\PositionController::class, 'destroy'])->name('positions.destroy');
 
-    // Users Routes
-    Route::resource('users', UserController::class);
-    Route::put('users/{id}/privileges', [UserController::class, 'updatePrivileges'])->name('users.privileges.update');
-
-    // Printing Routes
-    Route::get('printing', [PrintingController::class, 'index'])->name('printing');
+    // Division/Section/Unit Management Routes
+    Route::get('/divsecunits', [\App\Http\Controllers\DivSecUnitController::class, 'index'])->name('divsecunits.index');
+    Route::get('/divsecunits/create', [\App\Http\Controllers\DivSecUnitController::class, 'create'])->name('divsecunits.create');
+    Route::post('/divsecunits', [\App\Http\Controllers\DivSecUnitController::class, 'store'])->name('divsecunits.store');
+    Route::get('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'edit'])->name('divsecunits.edit');
+    Route::put('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'update'])->name('divsecunits.update');
+    Route::delete('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'destroy'])->name('divsecunits.destroy');
 });
 
 // Authentication Routes
-Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('login', [AuthController::class, 'login']);
-Route::get('register', [AuthController::class, 'showRegistrationForm'])->name('register');
-Route::post('register', [AuthController::class, 'register']);
+Route::middleware(['guest'])->group(function () {
+    Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('login', [AuthController::class, 'login']);
+    Route::get('/register', [RegisteredUserController::class, 'create'])
+    ->middleware(['guest', \App\Http\Middleware\CheckAdminExists::class])
+    ->name('register');
+
+    Route::post('/register', [RegisteredUserController::class, 'store'])
+    ->middleware(['guest', \App\Http\Middleware\CheckAdminExists::class])
+    ->name('register.store');
+});
+
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');

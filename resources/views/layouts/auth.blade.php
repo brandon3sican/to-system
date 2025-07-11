@@ -9,11 +9,11 @@
     <link rel="stylesheet" href="{{ asset('css/auth.css') }}">
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 col-md-10">
-                <div class="card shadow-lg border-0">
-                    <div class="card-body p-5">
+    <div class="container-fluid min-vh-100 d-flex align-items-center">
+        <div class="row w-100">
+            <div class="col-lg-4 col-md-6 mx-auto">
+                <div class="card shadow-lg border-0 rounded-4">
+                    <div class="card-body">
                         @yield('content')
                     </div>
                 </div>

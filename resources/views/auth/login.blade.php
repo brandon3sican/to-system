@@ -3,7 +3,14 @@
 @section('title', 'Login')
 
 @section('content')
-                <form method="POST" action="{{ route('login') }}">
+                <div class="text-center mb-4">
+                    <h1 class="h3 mb-2">DENR-Travel Order System</h1>
+                    <p class="text-muted">Please sign in to continue</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-body p-4">
+                        <form method="POST" action="{{ route('login') }}">
                     @csrf
                     
                     <div class="mb-3">
@@ -42,6 +49,7 @@
                             Sign In
                         </button>
                     </div>
-                </form>
-    </form>
+                        </form>
+                    </div>
+                </div>
 @endsection

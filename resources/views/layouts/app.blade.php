@@ -20,15 +20,27 @@
                 <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="fas fa-home"></i> Dashboard
                 </a>
-                <a href="{{ route('travel-orders.index') }}" class="{{ request()->routeIs('travel-orders.*') ? 'active' : '' }}">
+
+                <a href="{{ route('positions.index') }}" class="{{ request()->routeIs('positions.index') ? 'active' : '' }}">
+                    <i class="fas fa-briefcase"></i> Positions
+                </a>
+                
+                <a href="{{ route('divsecunits.index') }}" class="{{ request()->routeIs('divsecunits.index') ? 'active' : '' }}">
+                    <i class="fas fa-building"></i> Div/Sec/Unit
+                </a>
+
+                <a href="">
                     <i class="fas fa-file-alt"></i> Travel Orders
                 </a>
-                <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
+                
+                <a href="">
                     <i class="fas fa-users"></i> User Management
                 </a>
-                <a href="{{ route('printing') }}" class="{{ request()->routeIs('printing') ? 'active' : '' }}">
+
+                <a href="">
                     <i class="fas fa-print"></i> Printing
                 </a>
+
             </nav>
         </div>
 
