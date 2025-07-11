@@ -21,10 +21,7 @@ return new class extends Migration
 
         // Insert default div/sec/units
         DB::table('div_sec_units')->insert([
-            ['name' => 'Development Department', 'description' => 'Main development team', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Security Department', 'description' => 'Security operations team', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Unit 1', 'description' => 'Primary operational unit', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Unit 2', 'description' => 'Secondary operational unit', 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'Development Department', 'description' => 'Main development team', 'created_at' => now(), 'updated_at' => now()]
         ]);
     }
 

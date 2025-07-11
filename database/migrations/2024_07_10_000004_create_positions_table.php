@@ -17,6 +17,11 @@ return new class extends Migration
             $table->unsignedBigInteger('div_sec_unit_id');
             $table->timestamps();
         });
+
+        // Insert default positions
+        DB::table('positions')->insert([
+            ['name' => 'Administrator', 'div_sec_unit_id' => 1, 'created_at' => now(), 'updated_at' => now()],
+        ]);
     }
 
     /**
