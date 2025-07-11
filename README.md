@@ -146,6 +146,42 @@ php artisan serve
 
 The application will be available at `http://localhost:8000`
 
+## User Roles and Privileges
+
+The system implements a role-based access control (RBAC) system with the following roles:
+
+### 1. Employee (Regular)
+- Access to employee dashboard
+- Can create travel orders
+- Can track and print approved travel orders
+- Can view their own travel orders
+- Can view their own employee profile
+
+### 2. Recommender
+- All privileges of Employee (Regular)
+- Can recommend travel orders for approval
+- Can view all pending travel orders
+- Can print travel orders (approved or for recommendation)
+- Can view employee profiles
+
+### 3. Approver
+- All privileges of Employee (Regular) and Recommender
+- Can approve or reject travel orders
+- Can view all travel orders
+- Can print travel orders (approved or for recommendation)
+- Can view all employee profiles
+
+### 4. Administrator
+- All privileges of Employee, Recommender, and Approver
+- Can manage system settings
+- Can create and manage positions
+- Can create and manage divisions/sections/units
+- Can manage users and their roles
+- Can view all system logs
+- Can manage employment statuses
+- Can view all employee records
+- Can print any travel order
+
 ## Additional Notes
 
 1. The database uses Laravel's built-in `users` table for authentication and authorization.
