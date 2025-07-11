@@ -20,14 +20,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Insert Administrator account
-        DB::table('users')->insert([
-            'username' => 'admin',
-            'password' => Hash::make('admin123'),
-            'role_id' => 1,
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
     }
 
     /**
