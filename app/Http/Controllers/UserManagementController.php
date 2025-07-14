@@ -13,12 +13,17 @@ use Illuminate\Support\Facades\Hash;
 
 class UserManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = UserManagement::with(['role', 'employee'])
-            ->paginate(10);
+        $query = UserManagement::with(['role', 'employee' => function($query) {
+            $query->select('id', 'first_name', 'last_name');
+        }])->whereHas('employee');
+        
+        $users = $query->paginate(10);
+        
         $roles = Role::all();
         $employees = Employee::all();
+        
         return view('users.index', compact('users', 'roles', 'employees'));
     }
 
@@ -31,22 +36,54 @@ class UserManagementController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'username' => 'required|unique:users|max:100',
-            'password' => 'required|min:8',
-            'role_id' => 'required|exists:roles,id',
-        ]);
+        try {
+            $validated = $request->validate([
+                'username' => 'required|string|max:255|unique:users',
+                'password' => 'required|string|min:8',
+                'employee_id' => 'required|exists:employees,id',
+                'role_id' => 'required|exists:roles,id',
+            ]);
 
-        UserManagement::create([
-            'username' => $request->username,
-            'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
-            'employee_id' => $request->employee_id,
-        ]);
+            // Log the validated data for debugging
+            \Log::info('Creating user with data:', $validated);
 
-        return redirect()->route('users.index')
-            ->with('success', 'User created successfully.');
+            // Check if employee exists and is active
+            $employee = Employee::find($validated['employee_id']);
+            if (!$employee) {
+                throw new \Exception('Employee not found');
+            }
+
+            $user = UserManagement::create([
+                'username' => $validated['username'],
+                'password' => Hash::make($validated['password']),
+                'employee_id' => $validated['employee_id'],
+                'role_id' => $validated['role_id'],
+            ]);
+
+            \Log::info('User created successfully:', [
+                'id' => $user->id,
+                'username' => $user->username,
+                'employee_id' => $user->employee_id,
+                'role_id' => $user->role_id
+            ]);
+
+            return redirect()->route('users.index')
+                ->with('success', 'User created successfully');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation failed:', $e->errors());
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($e->errors());
+        } catch (\Exception $e) {
+            \Log::error('User creation failed:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create user: ' . $e->getMessage());
+        }
     }
 
     public function edit(UserManagement $user)

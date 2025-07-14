@@ -10,22 +10,6 @@
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="employee_id" class="form-label">Employee</label>
-                        <select id="employee_id" class="form-control @error('employee_id') is-invalid @enderror" name="employee_id" required>
-                            <option value="">Select Employee</option>
-                            @foreach($employees as $employee)
-                                <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>
-                                    {{ $employee->first_name }} {{ $employee->last_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('employee_id')
-                            <span class="invalid-feedback" role="alert">
-                                <strong>{{ $message }}</strong>
-                            </span>
-                        @enderror
-                    </div>
-                    <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <input id="username" type="text" class="form-control @error('username') is-invalid @enderror" name="username" value="{{ old('username') }}" required>
                         @error('username')
@@ -34,6 +18,7 @@
                             </span>
                         @enderror
                     </div>
+
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
                         <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" required>
@@ -43,6 +28,25 @@
                             </span>
                         @enderror
                     </div>
+
+                    <div class="mb-3">
+                        <label for="employee_id" class="form-label">Employee</label>
+                        <select id="employee_id" class="form-control @error('employee_id') is-invalid @enderror" name="employee_id" required>
+                            <option value="">Select Employee</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>
+                                    {{ $employee->first_name }} {{ $employee->last_name }} - 
+                                    {{ $employee->position->name }} ({{ $employee->employmentStatus->name }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('employee_id')
+                            <span class="invalid-feedback" role="alert">
+                                <strong>{{ $message }}</strong>
+                            </span>
+                        @enderror
+                    </div>
+
                     <div class="mb-3">
                         <label for="role_id" class="form-label">Role</label>
                         <select id="role_id" class="form-control @error('role_id') is-invalid @enderror" name="role_id" required>

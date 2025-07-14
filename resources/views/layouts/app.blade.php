@@ -20,9 +20,19 @@
                     <i class="fas fa-home"></i> Dashboard
                 </a>
 
-                <a href="">
-                    <i class="fas fa-user"></i> Employee
+                <a href="{{ route('employees.index') }}" class="{{ request()->routeIs('employees.index') ? 'active' : '' }}">
+                    <i class="fas fa-user"></i> Employees
                 </a>
+
+                <a href="">
+                    <i class="fas fa-file-alt"></i> Travel Orders
+                </a>
+
+                <a href="">
+                    <i class="fas fa-print"></i> Printing
+                </a>
+
+                <hr>
 
                 <a href="{{ route('positions.index') }}" class="{{ request()->routeIs('positions.index') ? 'active' : '' }}">
                     <i class="fas fa-briefcase"></i> Positions
@@ -32,16 +42,8 @@
                     <i class="fas fa-building"></i> Div/Sec/Unit
                 </a>
 
-                <a href="">
-                    <i class="fas fa-file-alt"></i> Travel Orders
-                </a>
-                
                 <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.index') ? 'active' : '' }}">
                     <i class="fas fa-users"></i> Users
-                </a>
-
-                <a href="">
-                    <i class="fas fa-print"></i> Printing
                 </a>
 
             </nav>

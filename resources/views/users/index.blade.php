@@ -71,7 +71,7 @@
                                 @foreach($users as $user)
                                 <tr>
                                     <td class="align-middle">
-                                        {{ $user->employee ? $user->employee->first_name . ' ' . $user->employee->last_name : 'No Employee Assigned' }}
+                                        {{ $user->employee ? ($user->employee->first_name . ' ' . $user->employee->last_name) : 'No Employee Assigned' }}
                                     </td>
                                     <td class="align-middle">{{ $user->username }}</td>
                                     <td class="align-middle">{{ $user->password }}</td>

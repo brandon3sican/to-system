@@ -3,6 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+use App\Models\Position;
+use App\Models\DivSecUnit;
+use App\Models\EmploymentStatus;
 
 class Employee extends Model
 {
@@ -42,6 +46,21 @@ class Employee extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function position()
+    {
+        return $this->belongsTo(Position::class);
+    }
+
+    public function divSecUnit()
+    {
+        return $this->belongsTo(DivSecUnit::class, 'div_sec_unit_id');
+    }
+
+    public function employmentStatus()
+    {
+        return $this->belongsTo(EmploymentStatus::class, 'employment_status_id');
     }
 
     /**

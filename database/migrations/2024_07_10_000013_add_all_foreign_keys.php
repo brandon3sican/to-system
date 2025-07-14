@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -49,32 +50,21 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop foreign keys in reverse order
-        Schema::table('positions', function (Blueprint $table) {
-            $table->dropForeign(['div_sec_unit_id']);
-        });
+        // Drop foreign keys in reverse order of creation
+        try {
+            DB::statement('ALTER TABLE travel_orders DROP FOREIGN KEY IF EXISTS travel_orders_employee_id_foreign');
+            DB::statement('ALTER TABLE travel_orders DROP FOREIGN KEY IF EXISTS travel_orders_official_station_id_foreign');
+            DB::statement('ALTER TABLE travel_orders DROP FOREIGN KEY IF EXISTS travel_orders_created_by_foreign');
+            DB::statement('ALTER TABLE travel_orders DROP FOREIGN KEY IF EXISTS travel_orders_recommended_by_foreign');
+            DB::statement('ALTER TABLE travel_orders DROP FOREIGN KEY IF EXISTS travel_orders_approved_by_foreign');
 
-        Schema::table('travel_order_logs', function (Blueprint $table) {
-            $table->dropForeign(['travel_order_id']);
-            $table->dropForeign(['performed_by']);
-        });
+            DB::statement('ALTER TABLE users DROP FOREIGN KEY IF EXISTS users_role_id_foreign');
 
-        Schema::table('travel_orders', function (Blueprint $table) {
-            $table->dropForeign(['employee_id']);
-            $table->dropForeign(['official_station_id']);
-            $table->dropForeign(['created_by']);
-            $table->dropForeign(['recommended_by']);
-            $table->dropForeign(['approved_by']);
-        });
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['role_id']);
-        });
-
-        Schema::table('employees', function (Blueprint $table) {
-            $table->dropForeign(['position_id']);
-            $table->dropForeign(['div_sec_unit_id']);
-            $table->dropForeign(['employment_status_id']);
-        });
+            DB::statement('ALTER TABLE employees DROP FOREIGN KEY IF EXISTS employees_position_id_foreign');
+            DB::statement('ALTER TABLE employees DROP FOREIGN KEY IF EXISTS employees_div_sec_unit_id_foreign');
+            DB::statement('ALTER TABLE employees DROP FOREIGN KEY IF EXISTS employees_employment_status_id_foreign');
+        } catch (\Exception $e) {
+            // If any foreign key doesn't exist, just continue
+        }
     }
 };

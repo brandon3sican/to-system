@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\DivSecUnitController;
+use App\Http\Controllers\EmployeeController;
 
 Route::middleware(['auth'])->group(function () {
     // Dashboard Routes
@@ -35,6 +36,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'edit'])->name('users.edit');
     Route::put('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'destroy'])->name('users.destroy');
+    
+    // Employee Management Routes
+    Route::get('/employees', [\App\Http\Controllers\EmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/employees/create', [\App\Http\Controllers\EmployeeController::class, 'create'])->name('employees.create');
+    Route::post('/employees', [\App\Http\Controllers\EmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/employees/{employee}', [\App\Http\Controllers\EmployeeController::class, 'edit'])->name('employees.edit');
+    Route::put('/employees/{employee}', [\App\Http\Controllers\EmployeeController::class, 'update'])->name('employees.update');
+    Route::delete('/employees/{employee}', [\App\Http\Controllers\EmployeeController::class, 'destroy'])->name('employees.destroy');
 });
 
 // Authentication Routes
