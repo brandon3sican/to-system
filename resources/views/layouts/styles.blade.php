@@ -1,3 +1,8 @@
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+
+<!-- Custom Styles -->
 <style>
     /* Table Styles */
     .table {
@@ -128,7 +133,15 @@
     }
 
     .form-control:focus {
-        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        box-shadow: 0 0 0 0
+        .2rem rgba(0,123,255,.25);
+    }
+
+    .form-label {
+        font-weight: 500;
+        font-size: 0.9rem;
+        font-style: bold;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     /* Success/Error Messages */
@@ -181,3 +194,17 @@
         gap: 1rem;
     }
 </style>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    // Initialize Select2 on document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        $('.select2').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Select an option',
+            allowClear: true
+        });
+    });
+</script>

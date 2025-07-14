@@ -31,11 +31,11 @@
 
                     <div class="mb-3">
                         <label for="employee_id" class="form-label">Employee</label>
-                        <select id="employee_id" class="form-control @error('employee_id') is-invalid @enderror" name="employee_id" required>
+                        <select id="employee_id" class="form-control select2 @error('employee_id') is-invalid @enderror" name="employee_id" required>
                             <option value="">Select Employee</option>
                             @foreach($employees as $employee)
                                 <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>
-                                    {{ $employee->first_name }} {{ $employee->last_name }} - 
+                                    {{ $employee->first_name }} {{ $employee->middle_name }} {{ $employee->last_name }} - 
                                     {{ $employee->position->name }} ({{ $employee->employmentStatus->name }})
                                 </option>
                             @endforeach
@@ -79,5 +79,10 @@
         // Show loading state
         document.querySelector('.modal-footer .btn-primary').disabled = true;
         document.querySelector('.modal-footer .btn-primary').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...';
+    });
+
+    // Initialize Select2
+    $(document).ready(function() {
+        $('.select2').select2();
     });
 </script>
