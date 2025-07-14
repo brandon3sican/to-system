@@ -13,12 +13,15 @@
     @auth
         <div class="sidebar">
             <div class="logo">
-                <i class="fas fa-database"></i>
-                <span>TOS</span>
+                <span><img src="{{ asset('assets/img/denr-logo.png') }}" alt="DENR Logo" height="50" width="50"> TOS</span>
             </div>
             <nav>
                 <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <i class="fas fa-home"></i> Dashboard
+                </a>
+
+                <a href="">
+                    <i class="fas fa-user"></i> Employee
                 </a>
 
                 <a href="{{ route('positions.index') }}" class="{{ request()->routeIs('positions.index') ? 'active' : '' }}">
@@ -33,8 +36,8 @@
                     <i class="fas fa-file-alt"></i> Travel Orders
                 </a>
                 
-                <a href="">
-                    <i class="fas fa-users"></i> User Management
+                <a href="{{ route('users.index') }}" class="{{ request()->routeIs('users.index') ? 'active' : '' }}">
+                    <i class="fas fa-users"></i> Users
                 </a>
 
                 <a href="">

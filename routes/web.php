@@ -5,6 +5,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\PositionController;
+use App\Http\Controllers\DivSecUnitController;
 
 Route::middleware(['auth'])->group(function () {
     // Dashboard Routes
@@ -25,6 +27,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'edit'])->name('divsecunits.edit');
     Route::put('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'update'])->name('divsecunits.update');
     Route::delete('/divsecunits/{divSecUnit}', [\App\Http\Controllers\DivSecUnitController::class, 'destroy'])->name('divsecunits.destroy');
+
+    // User Management Routes
+    Route::get('/users', [\App\Http\Controllers\UserManagementController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [\App\Http\Controllers\UserManagementController::class, 'create'])->name('users.create');
+    Route::post('/users', [\App\Http\Controllers\UserManagementController::class, 'store'])->name('users.store');
+    Route::get('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'edit'])->name('users.edit');
+    Route::put('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [\App\Http\Controllers\UserManagementController::class, 'destroy'])->name('users.destroy');
 });
 
 // Authentication Routes
