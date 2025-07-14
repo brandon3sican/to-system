@@ -11,18 +11,51 @@ use Illuminate\Support\Facades\Log;
 
 class UserManagementController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $query = UserManagement::with(['role', 'employee' => function($query) {
-            $query->select('id', 'first_name', 'last_name');
-        }])->whereHas('employee');
-        
-        $users = $query->paginate(10);
-        
-        $roles = Role::all();
+        $query = UserManagement::with(['role', 'employee'])
+            ->whereHas('role')
+            ->whereHas('employee');
+
+        // Search by name or username
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('employee', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('middle_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                })
+                ->orWhere('username', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by role
+        if ($request->has('role')) {
+            $role = $request->role;
+            $query->whereHas('role', function ($q) use ($role) {
+                $q->where('name', 'like', "%{$role}%");
+            });
+        }
+
+        // Filter by employee
+        if ($request->has('employee')) {
+            $employee = $request->employee;
+            $query->whereHas('employee', function ($q) use ($employee) {
+                $q->where('first_name', 'like', "%{$employee}%")
+                    ->orWhere('middle_name', 'like', "%{$employee}%")
+                    ->orWhere('last_name', 'like', "%{$employee}%");
+            });
+        }
+
+        $users = $query->orderBy('employee_id', 'asc')
+            ->paginate(10)
+            ->withQueryString();
+
         $employees = Employee::all();
-        
-        return view('users.index', compact('users', 'roles', 'employees'));
+        $roles = Role::all();
+
+        return view('users.index', compact('users', 'employees', 'roles'));
     }
 
     public function create()

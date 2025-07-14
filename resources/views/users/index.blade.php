@@ -7,6 +7,7 @@
 @php
     $employees = $employees ?? Employee::all();
     $roles = $roles ?? Role::all();
+    $users = $users ?? UserManagement::with(['role', 'employee'])->paginate(10);
 @endphp
 
 <div class="container">
@@ -57,13 +58,70 @@
                         </div>
                     @endif
 
+                    <!-- Search and Filter Form -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <form action="{{ route('users.index') }}" method="GET" class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" name="search" 
+                                               placeholder="Search by name or username..." 
+                                               value="{{ request('search') }}">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-user-tag"></i>
+                                        </span>
+                                        <select class="form-control" name="role">
+                                            <option value="">Filter by Role</option>
+                                            @foreach($roles as $role)
+                                                <option value="{{ $role->name }}" 
+                                                        {{ request('role') == $role->name ? 'selected' : '' }}>
+                                                    {{ $role->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                        <select class="form-control" name="employee">
+                                            <option value="">Filter by Employee</option>
+                                            @foreach($employees as $employee)
+                                                <option value="{{ $employee->first_name }} {{ $employee->middle_name }} {{ $employee->last_name }}" 
+                                                        {{ request('employee') == ($employee->first_name . ' ' . $employee->middle_name . ' ' . $employee->last_name) ? 'selected' : '' }}>
+                                                    {{ $employee->first_name }} {{ $employee->middle_name }} {{ $employee->last_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-filter me-2"></i>Filter
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead class="table-light">
                                 <tr>
                                     <th>Name</th>
                                     <th>Username</th>
-                                    <th>Password</th>
                                     <th>Role</th>
                                     <th class="text-center" style="width: 150px">Actions</th>
                                 </tr>
@@ -72,14 +130,13 @@
                                 @foreach($users as $user)
                                 <tr>
                                     <td class="align-middle">
-                                        {{ $user->employee ? ($user->employee->first_name . ' ' . $user->employee->last_name) : 'No Employee Assigned' }}
+                                        {{ $user->employee ? ($user->employee->first_name . ' ' . $user->employee->middle_name . ' ' . $user->employee->last_name) : 'No Employee Assigned' }}
                                     </td>
                                     <td class="align-middle">{{ $user->username }}</td>
-                                    <td class="align-middle">{{ $user->password }}</td>
                                     <td class="align-middle">{{ $user->role->name }}</td>
                                     <td>
                                         <div class="d-flex gap-2 justify-content-center">
-                                            <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editUserModal" data-user-id="{{ $user->id }}">
+                                            <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ $user->id }}">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ $user->id }}" title="Delete User">
@@ -87,30 +144,34 @@
                                             </button>
                                         </div>
                                     </td>
-                                    <!-- Delete Modal -->
-                                    <div class="modal fade" id="deleteUserModal{{ $user->id }}" tabindex="-1">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title">Delete User</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <form action="{{ route('users.destroy', $user) }}" method="POST">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <div class="modal-body">
-                                                        <p>Are you sure you want to delete this user?</p>
-                                                        <p class="text-danger">Warning: This action cannot be undone.</p>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-danger">Delete User</button>
-                                                    </div>
-                                                </form>
+                                </tr>
+
+                                <!-- Edit Modal -->
+                                @include('users.partials.edit-modal', ['user' => $user, 'roles' => $roles])
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteUserModal{{ $user->id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete User</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
+                                            <form action="{{ route('users.destroy', $user) }}" method="POST">
+                                                @csrf
+                                                @method('DELETE')
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete this user?</p>
+                                                    <p class="text-danger">Warning: This action cannot be undone.</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger">Delete User</button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
-                                </tr>
+                                </div>
                                 @endforeach
                             </tbody>
                         </table>
@@ -155,6 +216,5 @@
 </script>
 
 @include('users.partials.create-modal', ['employees' => $employees, 'roles' => $roles])
-@include('users.partials.edit-modal', ['employees' => $employees])
 
 @endsection
