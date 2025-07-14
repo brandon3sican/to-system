@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\DivSecUnit;
 use App\Models\EmploymentStatus;
+use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -13,30 +14,58 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->input('search');
-        $query = Employee::with(['position', 'divSecUnit', 'employmentStatus']);
+        $query = Employee::with(['position', 'divSecUnit', 'employmentStatus'])
+            ->whereHas('position')
+            ->whereHas('divSecUnit')
+            ->whereHas('employmentStatus');
 
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('first_name', 'like', '%' . $search . '%')
-                    ->orWhere('last_name', 'like', '%' . $search . '%')
-                    ->orWhere('phone', 'like', '%' . $search . '%')
-                    ->orWhere('address', 'like', '%' . $search . '%');
+        // Search by name
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('middle_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhereHas('position', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
-        $employees = $query->paginate(10);
+        // Filter by role
+        if ($request->has('role')) {
+            $role = $request->role;
+            $query->whereHas('userManagement', function ($q) use ($role) {
+                $q->whereHas('role', function ($q) use ($role) {
+                    $q->where('name', 'like', "%{$role}%");
+                });
+            });
+        }
+
+        // Filter by position
+        if ($request->has('position')) {
+            $position = $request->position;
+            $query->whereHas('position', function ($q) use ($position) {
+                $q->where('name', 'like', "%{$position}%");
+            });
+        }
+
+        $employees = $query->orderBy('last_name', 'asc')
+            ->orderBy('first_name', 'asc')
+            ->paginate(10)
+            ->withQueryString();
 
         $positions = Position::all();
+        $roles = Role::all();
         $divSecUnits = DivSecUnit::all();
         $employmentStatuses = EmploymentStatus::all();
 
         return view('employees.index', compact(
             'employees',
             'positions',
+            'roles',
             'divSecUnits',
-            'employmentStatuses',
-            'search'
+            'employmentStatuses'
         ));
     }
 
@@ -57,6 +86,7 @@ class EmployeeController extends Controller
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
@@ -93,6 +123,7 @@ class EmployeeController extends Controller
     {
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',

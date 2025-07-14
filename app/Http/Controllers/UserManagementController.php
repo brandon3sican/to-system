@@ -28,7 +28,7 @@ class UserManagementController extends Controller
     public function create()
     {
         $roles = Role::all();
-        $employees = Employee::all();
+        $employees = Employee::orderByFullName()->get();
         
         // Return a JSON response with the data needed for the modal
         return response()->json([

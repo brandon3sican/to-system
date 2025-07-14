@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         // Create Administrator employee record
         $adminEmployee = Employee::create([
             'first_name' => 'System',
+            'middle_name' => 'Admin',
             'last_name' => 'Administrator',
             'phone' => '09123456789',
             'address' => 'System Administrator',

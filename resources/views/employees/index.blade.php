@@ -52,6 +52,64 @@
                         </div>
                     @endif
 
+                    <!-- Search and Filter Form -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <form action="{{ route('employees.index') }}" method="GET" class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control" name="search" 
+                                               placeholder="Search by name..." 
+                                               value="{{ request('search') }}">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-user-tag"></i>
+                                        </span>
+                                        <select class="form-control" name="role">
+                                            <option value="">Filter by Role</option>
+                                            @foreach($roles as $role)
+                                                <option value="{{ $role->name }}" 
+                                                        {{ request('role') == $role->name ? 'selected' : '' }}>
+                                                    {{ $role->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-briefcase"></i>
+                                        </span>
+                                        <select class="form-control" name="position">
+                                            <option value="">Filter by Position</option>
+                                            @foreach($positions as $position)
+                                                <option value="{{ $position->name }}" 
+                                                        {{ request('position') == $position->name ? 'selected' : '' }}>
+                                                    {{ $position->name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-filter me-2"></i>Filter
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead class="table-light">
@@ -69,7 +127,7 @@
                                 @foreach($employees as $employee)
                                 <tr>
                                     <td class="align-middle">
-                                        {{ $employee->first_name }} {{ $employee->last_name }}
+                                        {{ $employee->first_name }} {{ $employee->middle_name }} {{ $employee->last_name }}
                                     </td>
                                     <td class="align-middle">{{ $employee->gender }}</td>
                                     <td class="align-middle">{{ $employee->date_hired }}</td>
@@ -102,7 +160,7 @@
                                             <div class="modal-body">
                                                 <div class="row">
                                                     <div class="col-md-6">
-                                                        <p><strong>Full Name:</strong> {{ $employee->first_name }} {{ $employee->last_name }}</p>
+                                                        <p><strong>Full Name:</strong> {{ $employee->first_name }} {{ $employee->middle_name }} {{ $employee->last_name }}</p>
                                                         <p><strong>Gender:</strong> {{ $employee->gender }}</p>
                                                         <p><strong>Birthdate:</strong> {{ $employee->birthdate }}</p>
                                                         <p><strong>Phone:</strong> {{ $employee->phone }}</p>
@@ -140,6 +198,16 @@
                                                         <label for="first_name" class="form-label">First Name</label>
                                                         <input id="first_name" type="text" class="form-control @error('first_name') is-invalid @enderror" name="first_name" value="{{ $employee->first_name }}" required>
                                                         @error('first_name')
+                                                            <span class="invalid-feedback" role="alert">
+                                                                <strong>{{ $message }}</strong>
+                                                            </span>
+                                                        @enderror
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label for="middle_name" class="form-label">Middle Name</label>
+                                                        <input id="middle_name" type="text" class="form-control @error('middle_name') is-invalid @enderror" name="middle_name" value="{{ $employee->middle_name }}">
+                                                        @error('middle_name')
                                                             <span class="invalid-feedback" role="alert">
                                                                 <strong>{{ $message }}</strong>
                                                             </span>
@@ -318,6 +386,5 @@
 
 <!-- Employee Modals -->
 @include('employees.partials.create-modal', ['positions' => $positions, 'divSecUnits' => $divSecUnits, 'employmentStatuses' => $employmentStatuses])
-@include('employees.partials.edit-modal', ['positions' => $positions, 'divSecUnits' => $divSecUnits, 'employmentStatuses' => $employmentStatuses])
 
 @endsection

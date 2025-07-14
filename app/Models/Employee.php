@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Position;
 use App\Models\DivSecUnit;
 use App\Models\EmploymentStatus;
+use App\Models\UserManagement;
 
 class Employee extends Model
 {
@@ -17,6 +18,7 @@ class Employee extends Model
      */
     protected $fillable = [
         'first_name',
+        'middle_name',
         'last_name',
         'phone',
         'address',
@@ -63,6 +65,11 @@ class Employee extends Model
         return $this->belongsTo(EmploymentStatus::class, 'employment_status_id');
     }
 
+    public function userManagement()
+    {
+        return $this->hasOne(UserManagement::class);
+    }
+
     /**
      * Get the employee's full position title.
      */
@@ -85,5 +92,17 @@ class Employee extends Model
     public function getStationAttribute()
     {
         return $this->official_station;
+    }
+
+    public function scopeOrderByFullName($query)
+    {
+        return $query->orderBy('last_name')
+                    ->orderBy('first_name')
+                    ->orderBy('middle_name');
+    }
+
+    public function getFullNameAttribute()
+    {
+        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
     }
 }
