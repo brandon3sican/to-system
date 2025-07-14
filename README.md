@@ -146,6 +146,114 @@ php artisan serve
 
 The application will be available at `http://localhost:8000`
 
+## Deployment Instructions
+
+### Production Deployment
+
+1. Clone the repository:
+```bash
+git clone https://github.com/brandon3sican/to-system.git
+```
+
+2. Install dependencies:
+```bash
+cd to-system
+composer install --optimize-autoloader --no-dev
+npm install --production
+```
+
+3. Configure environment:
+```bash
+cp .env.example .env
+```
+Edit `.env` with production settings:
+```
+APP_ENV=production
+APP_DEBUG=false
+```
+
+4. Generate application key:
+```bash
+php artisan key:generate --show
+```
+Copy the key and add it to your `.env` file
+
+5. Run migrations:
+```bash
+php artisan migrate --force
+```
+
+6. Clear caches:
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+7. Compile assets:
+```bash
+npm run build
+```
+
+8. Set up scheduled tasks:
+Add the following to your crontab:
+```
+* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### Environment Variables
+
+The following environment variables can be configured in your `.env` file:
+
+```env
+# Application
+APP_NAME=Travel Order System
+APP_ENV=local
+APP_KEY=your_app_key
+APP_DEBUG=true
+APP_URL=http://localhost
+
+# Database
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+
+# Mail
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=null
+MAIL_FROM_NAME="${APP_NAME}"
+
+# Logging
+LOG_CHANNEL=stack
+
+# Cache
+CACHE_DRIVER=file
+
+# Session
+SESSION_DRIVER=file
+```
+
+## Security Considerations
+
+1. Always use HTTPS in production
+2. Keep your `.env` file secure and never commit it to version control
+3. Regularly update dependencies using:
+```bash
+composer update
+npm update
+```
+4. Use strong passwords for database and application access
+5. Implement rate limiting for sensitive endpoints
+6. Regularly backup your database
+
 ## User Roles and Privileges
 
 The system implements a role-based access control (RBAC) system with the following roles:

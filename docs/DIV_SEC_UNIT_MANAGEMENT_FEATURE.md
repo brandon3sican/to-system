@@ -1,44 +1,133 @@
 # Division/Section/Unit Management Feature Development Guide
 
-This document provides a step-by-step guide on how the Division/Section/Unit Management feature was developed in the Travel Order System.
+This document provides a comprehensive guide on the Division/Section/Unit Management feature in the Travel Order System.
 
-## 1. Database Setup
+## 1. Feature Overview
 
-### 1.1 Create DivSecUnits Table
-```bash
-php artisan make:migration create_div_sec_units_table
+The Division/Section/Unit Management feature allows administrators to manage organizational units within the system. Each unit can have multiple positions and employees associated with it.
+
+### Key Features
+- CRUD operations for units
+- Unit hierarchy management
+- Employee and position relationships
+- Search and filtering capabilities
+- Audit logging
+
+## 2. Database Structure
+
+### 2.1 Schema Design
+
+```sql
+CREATE TABLE div_sec_units (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    parent_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    FOREIGN KEY (parent_id) REFERENCES div_sec_units(id)
+);
 ```
 
-#### Table Structure
-```php
-public function up(): void
+### 2.2 Indexes
+- Unique index on `name`
+- Foreign key index on `parent_id`
+- Composite index on `name, parent_id`
+
+## 3. API Documentation
+
+### 3.1 Endpoints
+
+#### Get All Units
+- **Endpoint**: GET `/api/div-sec-units`
+- **Parameters**:
+  - `search` (optional): Search term
+  - `parent_id` (optional): Filter by parent unit
+  - `page` (optional): Pagination page
+  - `per_page` (optional): Items per page
+
+#### Create Unit
+- **Endpoint**: POST `/api/div-sec-units`
+- **Request Body**:
+```json
 {
-    Schema::create('div_sec_units', function (Blueprint $table) {
-        $table->id();
-        $table->string('name')->unique();
-        $table->text('description')->nullable();
-        $table->timestamps();
-    });
+    "name": "string",
+    "description": "string",
+    "parent_id": "integer"
 }
 ```
 
-## 2. Model Creation
-
-### 2.1 Create DivSecUnit Model
-```bash
-php artisan make:model Models/DivSecUnit
+#### Update Unit
+- **Endpoint**: PUT `/api/div-sec-units/{id}`
+- **Request Body**:
+```json
+{
+    "name": "string",
+    "description": "string",
+    "parent_id": "integer"
+}
 ```
 
-#### Model Configuration
+#### Delete Unit
+- **Endpoint**: DELETE `/api/div-sec-units/{id}`
+
+### 3.2 Response Formats
+
+#### Success Response
+```json
+{
+    "success": true,
+    "data": {
+        "id": "integer",
+        "name": "string",
+        "description": "string",
+        "parent": {
+            "id": "integer",
+            "name": "string"
+        },
+        "positions_count": "integer",
+        "employees_count": "integer"
+    }
+}
+```
+
+#### Error Response
+```json
+{
+    "success": false,
+    "message": "Error message",
+    "errors": {
+        "field_name": ["error description"]
+    }
+}
+```
+
+## 4. Model Implementation
+
+### 4.1 Core Methods
+
 ```php
 namespace App\Models;
 
 class DivSecUnit extends Model
 {
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'name',
-        'description'
+        'description',
+        'parent_id'
     ];
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
 
     public function positions(): HasMany
     {
@@ -49,320 +138,274 @@ class DivSecUnit extends Model
     {
         return $this->hasManyThrough(Employee::class, Position::class);
     }
+
+    public function scopeSearch($query, $search)
+    {
+        if ($search) {
+            return $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        return $query;
+    }
 }
 ```
 
-## 3. Controller Development
+## 5. Controller Implementation
 
-### 3.1 Create DivSecUnitController
-```bash
-php artisan make:controller DivSecUnitController
-```
+### 5.1 Authorization
 
-#### Controller Methods
 ```php
 namespace App\Http\Controllers;
 
 class DivSecUnitController extends Controller
 {
-    // Display units list
-    public function index(Request $request)
+    public function __construct()
     {
-        $query = DivSecUnit::query();
-
-        if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
-        }
-
-        $units = $query->paginate(10);
-        
-        return view('div_sec_units.index', compact('units'));
+        $this->middleware('auth');
+        $this->middleware('role:administrator')->only(['store', 'update', 'destroy']);
     }
 
-    // Store new unit
+    public function index(Request $request)
+    {
+        $query = DivSecUnit::query()->withCount(['positions', 'employees']);
+
+        if ($request->filled('search')) {
+            $query->search($request->search);
+        }
+
+        if ($request->filled('parent_id')) {
+            $query->where('parent_id', $request->parent_id);
+        }
+
+        $units = $query->paginate($request->get('per_page', 10));
+        
+        return response()->json([
+            'success' => true,
+            'data' => $units
+        ]);
+    }
+
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255|unique:div_sec_units',
-                'description' => 'nullable|string',
-            ]);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:div_sec_units',
+            'description' => 'nullable|string',
+            'parent_id' => 'nullable|exists:div_sec_units,id',
+        ]);
 
-            $unit = DivSecUnit::create($validated);
-
-            return redirect()->route('div_sec_units.index')
-                ->with('success', 'Unit created successfully');
-
-        } catch (\Exception $e) {
-            \Log::error('Unit creation failed:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Failed to create unit: ' . $e->getMessage());
-        }
+        $unit = DivSecUnit::create($validated);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $unit
+        ], 201);
     }
 }
 ```
 
-## 4. View Development
+## 6. View Components
 
-### 4.1 Create DivSecUnits Index View
-```bash
-mkdir -p resources/views/div_sec_units
-```
+### 6.1 Vue Component
 
-#### Index View Content
-```php
-@extends('layouts.app')
-
-@section('content')
-<div class="container">
+```vue
+<template>
+  <div>
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="mb-0">Division/Section/Units</h3>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUnitModal">
-                Add New Unit
-            </button>
+      <div class="card-header">
+        <h3>Division/Section/Units</h3>
+        <button @click="openCreateModal">Add Unit</button>
+      </div>
+      <div class="card-body">
+        <div class="search-bar">
+          <input v-model="search" placeholder="Search units...">
         </div>
-
-        <div class="card-body">
-            <form class="mb-3">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="search" placeholder="Search units...">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </form>
-
-            @if(session('success'))
-                <div class="alert alert-success">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Positions</th>
-                        <th>Employees</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($units as $unit)
-                        <tr>
-                            <td>{{ $unit->name }}</td>
-                            <td>{{ $unit->description }}</td>
-                            <td>{{ $unit->positions->count() }}</td>
-                            <td>{{ $unit->employees->count() }}</td>
-                            <td>
-                                <button class="btn btn-sm btn-info" onclick="editUnit({{ $unit->id }})">
-                                    Edit
-                                </button>
-                                <button class="btn btn-sm btn-danger" onclick="deleteUnit({{ $unit->id }})">
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-
-            {{ $units->links('pagination::bootstrap-5') }}
+        <div class="unit-tree">
+          <unit-tree :units="units" @edit="editUnit" @delete="deleteUnit"></unit-tree>
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Create Unit Modal -->
-<div class="modal fade" id="createUnitModal">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create New Unit</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ route('div_sec_units.store') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <!-- Form fields -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Unit</button>
-                </div>
-            </form>
+    <div v-if="showCreateModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4>{{ editingUnit ? 'Edit Unit' : 'Create Unit' }}</h4>
+          <button @click="closeModal">&times;</button>
         </div>
+        <div class="modal-body">
+          <form @submit.prevent="saveUnit">
+            <input v-model="form.name" placeholder="Name">
+            <textarea v-model="form.description" placeholder="Description"></textarea>
+            <select v-model="form.parent_id">
+              <option value="">No Parent</option>
+              <option v-for="unit in parentUnits" :value="unit.id">{{ unit.name }}</option>
+            </select>
+            <button type="submit">Save</button>
+          </form>
+        </div>
+      </div>
     </div>
-</div>
-@endsection
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      units: [],
+      search: '',
+      showCreateModal: false,
+      editingUnit: null,
+      form: {
+        name: '',
+        description: '',
+        parent_id: null
+      }
+    };
+  },
+  computed: {
+    parentUnits() {
+      return this.units.filter(unit => !unit.parent_id);
+    }
+  },
+  methods: {
+    async fetchUnits() {
+      try {
+        const response = await axios.get('/api/div-sec-units', {
+          params: { search: this.search }
+        });
+        this.units = response.data.data;
+      } catch (error) {
+        this.handleError(error);
+      }
+    },
+    async saveUnit() {
+      try {
+        const url = this.editingUnit 
+          ? `/api/div-sec-units/${this.editingUnit.id}`
+          : '/api/div-sec-units';
+        
+        const method = this.editingUnit ? 'put' : 'post';
+        
+        await axios[method](url, this.form);
+        this.closeModal();
+        this.fetchUnits();
+      } catch (error) {
+        this.handleError(error);
+      }
+    }
+  }
+};
+</script>
 ```
 
-### 4.2 Create Create Modal Partial
-```bash
-mkdir -p resources/views/div_sec_units/partials
-```
+## 7. Testing
 
-#### Create Modal Content
-```php
-<div class="modal-body">
-    <div class="mb-3">
-        <label for="name" class="form-label">Name</label>
-        <input id="name" type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" required>
-        @error('name')
-            <span class="invalid-feedback" role="alert">
-                <strong>{{ $message }}</strong>
-            </span>
-        @enderror
-    </div>
+### 7.1 Unit Tests
 
-    <div class="mb-3">
-        <label for="description" class="form-label">Description</label>
-        <textarea id="description" class="form-control @error('description') is-invalid @enderror" name="description">{{ old('description') }}</textarea>
-        @error('description')
-            <span class="invalid-feedback" role="alert">
-                <strong>{{ $message }}</strong>
-            </span>
-        @enderror
-    </div>
-</div>
-```
-
-## 5. Routes Configuration
-
-### 5.1 Add Routes to web.php
-```php
-Route::middleware(['auth'])->group(function () {
-    // DivSecUnit Management Routes
-    Route::get('/div_sec_units', [DivSecUnitController::class, 'index'])->name('div_sec_units.index');
-    Route::post('/div_sec_units', [DivSecUnitController::class, 'store'])->name('div_sec_units.store');
-    Route::get('/div_sec_units/{unit}', [DivSecUnitController::class, 'edit'])->name('div_sec_units.edit');
-    Route::put('/div_sec_units/{unit}', [DivSecUnitController::class, 'update'])->name('div_sec_units.update');
-    Route::delete('/div_sec_units/{unit}', [DivSecUnitController::class, 'destroy'])->name('div_sec_units.destroy');
-});
-```
-
-## 6. Testing
-
-### 6.1 Unit Tests
-```bash
-php artisan make:test DivSecUnitManagementTest
-```
-
-#### Test Methods
 ```php
 namespace Tests\Feature;
 
 class DivSecUnitManagementTest extends TestCase
 {
-    public function test_unit_can_be_created()
+    public function test_can_create_div_sec_unit()
     {
-        $response = $this->post('/div_sec_units', [
-            'name' => 'Development Department',
-            'description' => 'Responsible for software development and maintenance',
-        ]);
-        
-        $response->assertRedirect('/div_sec_units');
+        $response = $this->actingAs($this->adminUser)
+            ->postJson('/api/div-sec-units', [
+                'name' => 'Test Unit',
+                'description' => 'Test Description'
+            ]);
+
+        $response->assertStatus(201);
         $this->assertDatabaseHas('div_sec_units', [
-            'name' => 'Development Department',
+            'name' => 'Test Unit'
         ]);
     }
-}
-```
 
-### 6.2 Feature Tests
-```php
-namespace Tests\Feature;
-
-class DivSecUnitManagementFeatureTest extends TestCase
-{
-    public function test_unit_creation_form_displays_correctly()
+    public function test_cannot_create_duplicate_unit()
     {
-        $response = $this->get('/div_sec_units/create');
-        
-        $response->assertStatus(200)
-            ->assertSee('Create New Unit')
-            ->assertSee('Name')
-            ->assertSee('Description');
+        $this->actingAs($this->adminUser)
+            ->postJson('/api/div-sec-units', [
+                'name' => 'Test Unit'
+            ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson('/api/div-sec-units', [
+                'name' => 'Test Unit'
+            ]);
+
+        $response->assertStatus(422);
     }
 }
 ```
 
-## 7. Deployment Checklist
+## 8. Best Practices
 
-1. Run database migrations:
-```bash
-php artisan migrate
+### 8.1 Security
+- Use role-based access control
+- Implement proper validation
+- Use soft deletes for units
+- Log all unit modifications
+- Validate parent-child relationships
+
+### 8.2 Performance
+- Use eager loading for relationships
+- Implement proper indexing
+- Use pagination for large datasets
+- Cache frequently accessed data
+- Optimize database queries
+
+### 8.3 Data Integrity
+- Maintain proper referential integrity
+- Handle orphaned records
+- Validate hierarchical relationships
+- Implement proper error handling
+- Use transactions for complex operations
+
+## 9. Error Handling
+
+### 9.1 Common Errors
+
+1. **Validation Errors**
+   - Duplicate unit name
+   - Invalid parent unit
+   - Missing required fields
+
+2. **Authorization Errors**
+   - Insufficient permissions
+   - Unauthorized access
+
+3. **Data Integrity Errors**
+   - Orphaned records
+   - Invalid relationships
+   - Circular references
+
+### 9.2 Error Response Format
+
+```json
+{
+    "success": false,
+    "message": "Error message",
+    "errors": {
+        "field_name": ["error description"]
+    },
+    "status_code": 422
+}
 ```
-
-2. Clear caches:
-```bash
-php artisan cache:clear
-php artisan config:clear
-php artisan view:clear
-```
-
-3. Clear compiled views:
-```bash
-php artisan optimize:clear
-```
-
-4. Verify environment variables:
-- Database connection settings
-- Application key
-
-## 8. Common Issues and Solutions
-
-### 8.1 Unit Creation Fails
-- Check if name is unique
-- Verify input validation
-- Check database constraints
-
-### 8.2 Search Not Working
-- Verify database indexes
-- Check search query logic
-- Ensure proper pagination
-
-### 8.3 Statistics Not Updating
-- Verify relationships
-- Check database triggers
-- Test with different data
-
-## 9. Security Considerations
-
-1. Input Validation
-- Validate all form inputs
-- Use Laravel's validation rules
-- Sanitize user input
-
-2. Authorization
-- Use middleware to protect routes
-- Implement role-based access control
-- Never expose sensitive data
-
-3. Data Integrity
-- Use unique constraints
-- Implement proper relationships
-- Validate data consistency
 
 ## 10. Maintenance
 
-1. Regular Backups
-- Database
-- Configuration files
-- Logs
+### 10.1 Regular Tasks
+- Backup unit data
+- Clean up orphaned records
+- Monitor performance
+- Review audit logs
+- Update documentation
 
-2. Monitoring
-- Error logs
-- Database performance
-- Unit assignments
-
-3. Updates
-- Keep Laravel updated
-- Update dependencies
-- Test after updates
+### 10.2 Troubleshooting
+- Check database constraints
+- Review error logs
+- Monitor API responses
+- Validate relationships
+- Test backup procedures

@@ -433,3 +433,808 @@ php artisan db:seed --class=RoleSeeder
 - Keep Laravel updated
 - Update dependencies
 - Test after updates
+
+## 11. API Documentation
+
+### 11.1 Authentication Endpoints
+
+#### Login
+- **Endpoint**: POST `/api/auth/login`
+- **Request Body**:
+```json
+{
+    "username": "string",
+    "password": "string",
+    "remember": "boolean"
+}
+```
+- **Response**:
+```json
+{
+    "success": true,
+    "data": {
+        "token": "string",
+        "user": {
+            "id": "integer",
+            "username": "string",
+            "role": {
+                "id": "integer",
+                "name": "string"
+            },
+            "employee": {
+                "id": "integer",
+                "full_name": "string"
+            }
+        }
+    }
+}
+```
+
+#### Register
+- **Endpoint**: POST `/api/auth/register`
+- **Request Body**:
+```json
+{
+    "username": "string",
+    "password": "string",
+    "password_confirmation": "string",
+    "role_id": "integer",
+    "employee_id": "integer"
+}
+```
+
+#### Logout
+- **Endpoint**: POST `/api/auth/logout`
+
+#### Refresh Token
+- **Endpoint**: POST `/api/auth/refresh`
+
+### 11.2 User Management Endpoints
+
+#### Get Users
+- **Endpoint**: GET `/api/users`
+- **Parameters**:
+  - `search` (optional): Search term
+  - `role_id` (optional): Filter by role
+  - `employee_id` (optional): Filter by employee
+  - `page` (optional): Pagination page
+  - `per_page` (optional): Items per page
+
+#### Create User
+- **Endpoint**: POST `/api/users`
+- **Request Body**:
+```json
+{
+    "username": "string",
+    "password": "string",
+    "role_id": "integer",
+    "employee_id": "integer"
+}
+```
+
+#### Update User
+- **Endpoint**: PUT `/api/users/{id}`
+- **Request Body**:
+```json
+{
+    "username": "string",
+    "password": "string",
+    "role_id": "integer",
+    "employee_id": "integer"
+}
+```
+
+#### Delete User
+- **Endpoint**: DELETE `/api/users/{id}`
+
+### 11.3 Response Formats
+
+#### Success Response
+```json
+{
+    "success": true,
+    "data": {
+        "id": "integer",
+        "username": "string",
+        "role": {
+            "id": "integer",
+            "name": "string"
+        },
+        "employee": {
+            "id": "integer",
+            "full_name": "string"
+        },
+        "last_login_at": "datetime",
+        "last_login_ip": "string"
+    }
+}
+```
+
+#### Error Response
+```json
+{
+    "success": false,
+    "message": "Error message",
+    "errors": {
+        "field_name": ["error description"]
+    },
+    "status_code": 422
+}
+```
+
+## 12. Model Implementation
+
+### 12.1 User Model
+
+```php
+namespace App\Models;
+
+class User extends Authenticatable
+{
+    use HasFactory, SoftDeletes, HasApiTokens;
+
+    protected $fillable = [
+        'username',
+        'password',
+        'role_id',
+        'employee_id',
+        'two_factor_secret',
+        'two_factor_recovery_codes'
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes'
+    ];
+
+    protected $casts = [
+        'two_factor_recovery_codes' => 'json'
+    ];
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function hasPermissionTo($permission): bool
+    {
+        return $this->role->hasPermissionTo($permission);
+    }
+
+    public function can($ability, $arguments = []): bool
+    {
+        return $this->role->can($ability, $arguments);
+    }
+
+    public function generateTwoFactorRecoveryCodes(): array
+    {
+        $codes = collect(range(1, 10))->map(function () {
+            return Str::random(16);
+        });
+
+        $this->forceFill([
+            'two_factor_recovery_codes' => json_encode($codes->toArray())
+        ])->save();
+
+        return $codes->toArray();
+    }
+
+    public function regenerateTwoFactorSecret(): string
+    {
+        $this->forceFill([
+            'two_factor_secret' => $this->generateTwoFactorSecret()
+        ])->save();
+
+        return $this->two_factor_secret;
+    }
+
+    public function getTwoFactorQrCodeUrl(string $appName): string
+    {
+        return app(TwoFactorAuthenticatable::class)->getTwoFactorQrCodeUrl(
+            $appName,
+            $this->username,
+            $this->two_factor_secret
+        );
+    }
+}
+```
+
+### 12.2 Role Model
+
+```php
+namespace App\Models;
+
+class Role extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        'name',
+        'description',
+        'permissions'
+    ];
+
+    protected $casts = [
+        'permissions' => 'json'
+    ];
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_permission');
+    }
+
+    public function hasPermissionTo($permission): bool
+    {
+        if (is_string($permission)) {
+            return $this->permissions->contains('name', $permission);
+        }
+
+        return !!$permission->intersect($this->permissions)->count();
+    }
+
+    public function can($ability, $arguments = []): bool
+    {
+        return $this->hasPermissionTo($ability);
+    }
+
+    public function givePermissionTo($permissions): Role
+    {
+        $permissions = is_array($permissions) ? $permissions : func_get_args();
+
+        $permissions = Permission::whereIn('name', $permissions)->get();
+
+        if ($permissions->isEmpty()) {
+            return $this;
+        }
+
+        $this->permissions()->saveMany($permissions);
+
+        return $this;
+    }
+
+    public function revokePermissionTo($permissions): Role
+    {
+        $permissions = is_array($permissions) ? $permissions : func_get_args();
+
+        $this->permissions()->detach(
+            Permission::whereIn('name', $permissions)->get()
+        );
+
+        return $this;
+    }
+}
+```
+
+## 13. Controller Implementation
+
+### 13.1 Authentication Controller
+
+```php
+namespace App\Http\Controllers\Auth;
+
+class AuthController extends Controller
+{
+    public function login(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+            'remember' => 'boolean'
+        ]);
+
+        if (!Auth::attempt(
+            $request->only('username', 'password'),
+            $request->boolean('remember')
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials'
+            ], 401);
+        }
+
+        $user = Auth::user();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $user->update([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'token' => $token,
+                'user' => $user
+            ]
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Successfully logged out'
+        ]);
+    }
+}
+```
+
+### 13.2 User Management Controller
+
+```php
+namespace App\Http\Controllers;
+
+class UserManagementController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:administrator')->only([
+            'store', 'update', 'destroy', 'updateRole'
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        $query = User::query()
+            ->with([
+                'role',
+                'employee' => function($q) {
+                    $q->select('id', 'first_name', 'last_name');
+                }
+            ]);
+
+        if ($request->filled('search')) {
+            $query->where('username', 'like', "%{$request->search}%");
+        }
+
+        if ($request->filled('role_id')) {
+            $query->where('role_id', $request->role_id);
+        }
+
+        if ($request->filled('employee_id')) {
+            $query->where('employee_id', $request->employee_id);
+        }
+
+        $users = $query->paginate($request->get('per_page', 10));
+        
+        return response()->json([
+            'success' => true,
+            'data' => $users
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'username' => 'required|string|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+            'role_id' => 'required|exists:roles,id',
+            'employee_id' => 'required|exists:employees,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'username' => $validated['username'],
+                'password' => Hash::make($validated['password']),
+                'role_id' => $validated['role_id'],
+                'employee_id' => $validated['employee_id']
+            ]);
+
+            // Generate two-factor authentication secret
+            $user->regenerateTwoFactorSecret();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $user
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('User creation failed:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create user: ' . $e->getMessage()
+            ], 422);
+        }
+    }
+
+    public function updateRole(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'role_id' => 'required|exists:roles,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $user->update($validated);
+            
+            // Update permissions cache
+            $user->forgetCachedPermissions();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $user
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+}
+```
+
+## 14. View Components
+
+### 14.1 Vue Component
+
+```vue
+<template>
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Users</h3>
+        <button @click="openCreateModal">Add User</button>
+      </div>
+      <div class="card-body">
+        <div class="filters">
+          <select v-model="filters.role_id">
+            <option value="">All Roles</option>
+            <option v-for="role in roles" :value="role.id">{{ role.name }}</option>
+          </select>
+          
+          <select v-model="filters.employee_id">
+            <option value="">All Employees</option>
+            <option v-for="employee in employees" :value="employee.id">{{ employee.full_name }}</option>
+          </select>
+        </div>
+
+        <div class="search-bar">
+          <input v-model="search" placeholder="Search users...">
+        </div>
+
+        <div class="users-list">
+          <user-card 
+            v-for="user in users" 
+            :key="user.id" 
+            :user="user"
+            @edit="editUser"
+            @delete="deleteUser">
+          </user-card>
+        </div>
+
+        <pagination 
+          :total-pages="totalPages" 
+          :current-page="currentPage"
+          @page-changed="changePage">
+        </pagination>
+      </div>
+    </div>
+
+    <div v-if="showCreateModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4>{{ editingUser ? 'Edit User' : 'Create User' }}</h4>
+          <button @click="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="saveUser">
+            <div class="form-group">
+              <label>Username</label>
+              <input v-model="form.username" required>
+            </div>
+            
+            <div class="form-group" v-if="!editingUser">
+              <label>Password</label>
+              <input type="password" v-model="form.password" required>
+            </div>
+            
+            <div class="form-group" v-if="!editingUser">
+              <label>Confirm Password</label>
+              <input type="password" v-model="form.password_confirmation" required>
+            </div>
+            
+            <div class="form-group">
+              <label>Role</label>
+              <select v-model="form.role_id" required>
+                <option value="">Select Role</option>
+                <option v-for="role in roles" :value="role.id">{{ role.name }}</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Employee</label>
+              <select v-model="form.employee_id" required>
+                <option value="">Select Employee</option>
+                <option v-for="employee in employees" :value="employee.id">{{ employee.full_name }}</option>
+              </select>
+            </div>
+            
+            <button type="submit">Save</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      users: [],
+      roles: [],
+      employees: [],
+      search: '',
+      showCreateModal: false,
+      editingUser: null,
+      filters: {
+        role_id: null,
+        employee_id: null
+      },
+      form: {
+        username: '',
+        password: '',
+        password_confirmation: '',
+        role_id: null,
+        employee_id: null
+      }
+    };
+  },
+  methods: {
+    async fetchUsers() {
+      try {
+        const response = await axios.get('/api/users', {
+          params: {
+            search: this.search,
+            role_id: this.filters.role_id,
+            employee_id: this.filters.employee_id
+          }
+        });
+        this.users = response.data.data;
+      } catch (error) {
+        this.handleError(error);
+      }
+    },
+    async saveUser() {
+      try {
+        const url = this.editingUser 
+          ? `/api/users/${this.editingUser.id}`
+          : '/api/users';
+        
+        const method = this.editingUser ? 'put' : 'post';
+        
+        await axios[method](url, this.form);
+        this.closeModal();
+        this.fetchUsers();
+      } catch (error) {
+        this.handleError(error);
+      }
+    }
+  }
+};
+</script>
+```
+
+## 15. Testing
+
+### 15.1 Unit Tests
+
+```php
+namespace Tests\Feature;
+
+class UserManagementTest extends TestCase
+{
+    public function test_can_create_user()
+    {
+        $employee = Employee::factory()->create();
+        $role = Role::factory()->create();
+        
+        $response = $this->actingAs($this->adminUser)
+            ->postJson('/api/users', [
+                'username' => 'testuser',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'role_id' => $role->id,
+                'employee_id' => $employee->id
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('users', [
+            'username' => 'testuser',
+            'role_id' => $role->id,
+            'employee_id' => $employee->id
+        ]);
+    }
+
+    public function test_cannot_create_duplicate_username()
+    {
+        $employee = Employee::factory()->create();
+        $role = Role::factory()->create();
+        
+        $this->actingAs($this->adminUser)
+            ->postJson('/api/users', [
+                'username' => 'testuser',
+                'role_id' => $role->id,
+                'employee_id' => $employee->id
+            ]);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson('/api/users', [
+                'username' => 'testuser',
+                'role_id' => $role->id,
+                'employee_id' => $employee->id
+            ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_can_update_user_role()
+    {
+        $user = User::factory()->create();
+        $newRole = Role::factory()->create();
+        
+        $response = $this->actingAs($this->adminUser)
+            ->putJson(
+                '/api/users/' . $user->id . '/role',
+                [
+                    'role_id' => $newRole->id
+                ]
+            );
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'role_id' => $newRole->id
+        ]);
+    }
+}
+```
+
+### 15.2 Feature Tests
+
+```php
+namespace Tests\Feature;
+
+class AuthenticationTest extends TestCase
+{
+    public function test_can_login_with_valid_credentials()
+    {
+        $user = User::factory()->create();
+        
+        $response = $this->post('/api/auth/login', [
+            'username' => $user->username,
+            'password' => 'password',
+            'remember' => false
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'data' => [
+                    'token',
+                    'user'
+                ]
+            ]);
+    }
+
+    public function test_cannot_login_with_invalid_credentials()
+    {
+        $response = $this->post('/api/auth/login', [
+            'username' => 'nonexistent',
+            'password' => 'wrongpassword'
+        ]);
+
+        $response->assertStatus(401);
+    }
+}
+```
+
+## 16. Best Practices
+
+### 16.1 Security
+- Implement proper password hashing
+- Use role-based access control
+- Implement two-factor authentication
+- Use secure token generation
+- Validate all inputs
+- Implement proper session management
+- Use HTTPS for all authentication
+- Implement rate limiting
+
+### 16.2 Performance
+- Use eager loading for relationships
+- Implement proper indexing
+- Use pagination for large datasets
+- Cache frequently accessed data
+- Optimize database queries
+- Batch operations for bulk updates
+
+### 16.3 Data Integrity
+- Maintain proper referential integrity
+- Handle orphaned records
+- Validate relationships
+- Implement proper error handling
+- Use transactions for complex operations
+- Maintain audit logs
+- Validate password complexity
+
+## 17. Error Handling
+
+### 17.1 Common Errors
+
+1. **Authentication Errors**
+   - Invalid credentials
+   - Account locked
+   - Session expired
+   - Token invalid
+
+2. **Authorization Errors**
+   - Insufficient permissions
+   - Unauthorized access
+   - Invalid role assignments
+
+3. **Data Integrity Errors**
+   - Duplicate username
+   - Invalid relationships
+   - Orphaned records
+   - Invalid permissions
+
+### 17.2 Error Response Format
+
+```json
+{
+    "success": false,
+    "message": "Error message",
+    "errors": {
+        "field_name": ["error description"]
+    },
+    "status_code": 422
+}
+```
+
+## 18. Maintenance
+
+### 18.1 Regular Tasks
+- Backup user data
+- Clean up orphaned records
+- Monitor performance
+- Review audit logs
+- Update documentation
+- Validate relationships
+- Test authentication flows
+- Review security settings
+
+### 18.2 Troubleshooting
+- Check database constraints
+- Review error logs
+- Monitor API responses
+- Validate relationships
+- Test backup procedures
+- Review authentication issues
+- Check session management
