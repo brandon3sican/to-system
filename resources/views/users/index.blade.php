@@ -6,6 +6,7 @@
 
 @php
     $employees = $employees ?? Employee::all();
+    $roles = $roles ?? Role::all();
 @endphp
 
 <div class="container">
@@ -122,7 +123,38 @@
     </div>
 </div>
 
-@include('users.partials.create-modal', ['employees' => $employees])
+<!-- Add debugging script -->
+<script>
+    // Debug modal events
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Page loaded');
+        
+        // Check if modal exists
+        const createModal = document.getElementById('createUserModal');
+        if (!createModal) {
+            console.error('Create user modal not found');
+            return;
+        }
+        console.log('Create user modal found');
+
+        // Add event listener for modal show
+        createModal.addEventListener('show.bs.modal', function (event) {
+            console.log('Create user modal is showing');
+            // Reset form if needed
+            const form = document.getElementById('createUserForm');
+            if (form) {
+                form.reset();
+            }
+        });
+
+        // Add event listener for modal hide
+        createModal.addEventListener('hide.bs.modal', function (event) {
+            console.log('Create user modal is hiding');
+        });
+    });
+</script>
+
+@include('users.partials.create-modal', ['employees' => $employees, 'roles' => $roles])
 @include('users.partials.edit-modal', ['employees' => $employees])
 
 @endsection

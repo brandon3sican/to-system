@@ -4,16 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\UserManagement;
 use App\Models\Role;
-use App\Models\Position;
-use App\Models\DivSecUnit;
-use App\Models\EmploymentStatus;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class UserManagementController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
         $query = UserManagement::with(['role', 'employee' => function($query) {
             $query->select('id', 'first_name', 'last_name');
@@ -31,7 +29,12 @@ class UserManagementController extends Controller
     {
         $roles = Role::all();
         $employees = Employee::all();
-        return view('users.index', compact('roles', 'employees'));
+        
+        // Return a JSON response with the data needed for the modal
+        return response()->json([
+            'roles' => $roles,
+            'employees' => $employees
+        ]);
     }
 
     public function store(Request $request)
@@ -44,15 +47,7 @@ class UserManagementController extends Controller
                 'role_id' => 'required|exists:roles,id',
             ]);
 
-            // Log the validated data for debugging
-            \Log::info('Creating user with data:', $validated);
-
-            // Check if employee exists and is active
-            $employee = Employee::find($validated['employee_id']);
-            if (!$employee) {
-                throw new \Exception('Employee not found');
-            }
-
+            // Create the user
             $user = UserManagement::create([
                 'username' => $validated['username'],
                 'password' => Hash::make($validated['password']),
@@ -60,7 +55,7 @@ class UserManagementController extends Controller
                 'role_id' => $validated['role_id'],
             ]);
 
-            \Log::info('User created successfully:', [
+            Log::info('User created successfully:', [
                 'id' => $user->id,
                 'username' => $user->username,
                 'employee_id' => $user->employee_id,
@@ -70,16 +65,12 @@ class UserManagementController extends Controller
             return redirect()->route('users.index')
                 ->with('success', 'User created successfully');
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::error('Validation failed:', $e->errors());
-            return redirect()->back()
-                ->withInput()
-                ->withErrors($e->errors());
         } catch (\Exception $e) {
-            \Log::error('User creation failed:', [
+            Log::error('User creation failed:', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to create user: ' . $e->getMessage());
@@ -92,9 +83,9 @@ class UserManagementController extends Controller
             'user' => $user,
             'employee' => $user->employee,
             'roles' => Role::all(),
-            'positions' => Position::all(),
-            'divSecUnits' => DivSecUnit::all(),
-            'employmentStatuses' => EmploymentStatus::all()
+            'positions' => null,
+            'divSecUnits' => null,
+            'employmentStatuses' => null
         ]);
     }
 

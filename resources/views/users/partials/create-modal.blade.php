@@ -6,7 +6,7 @@
                 <h5 class="modal-title">Create New User</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('users.store') }}" method="POST">
+            <form action="{{ route('users.store') }}" method="POST" id="createUserForm">
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
@@ -72,3 +72,12 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Add event listener to form submission
+    document.getElementById('createUserForm').addEventListener('submit', function(e) {
+        // Show loading state
+        document.querySelector('.modal-footer .btn-primary').disabled = true;
+        document.querySelector('.modal-footer .btn-primary').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating...';
+    });
+</script>
