@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             'phone' => '09123456789',
             'address' => 'System Administrator',
             'birthdate' => '1990-01-01',
-            'gender' => 'Other',
+            'gender' => 'Male',
             'date_hired' => now(),
             'position_id' => 1,
             'div_sec_unit_id' => 1,
